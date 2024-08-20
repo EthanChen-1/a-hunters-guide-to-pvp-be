@@ -1,0 +1,95 @@
+require("dotenv").config();
+const express = require("express");
+const bodyParser = require("body-parser");
+const bcrypt = require("bcrypt");
+const conDB = require("./dbConnection");
+const jwt = require("jsonwebtoken");
+const userModel = require("./userModel");
+
+const app = express();
+const port = process.env.PORT || 8000;
+
+conDB();
+
+app.use(bodyParser.json());
+
+app.get("/", (req, res) => {
+  res.status(200).json("Welcome to the AHGTPVP Backend");
+});
+
+app.post("/register", async (req, res) => {
+  const { username, email, password } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = new userModel({
+    username,
+    email,
+    password: hashedPassword,
+  });
+  const userCreated = await newUser.save();
+  if (!userCreated) {
+    console.log("Error occured when trying to create a user");
+    return res.status(500).send("Error occured when trying to create a user");
+  } else {
+    console.log("User sucessfully registered");
+    return res.status(200).send("User sucessfully registered");
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  console.log(`User with email: ${email} has attempted to login`);
+  const user = await userModel.findOne({ email });
+  if (!user) {
+    console.log(`User with email: ${email} has failed to login`);
+    return res.status(401).send("Invalid email or password");
+  }
+  const checkPassword = await bcrypt.compare(password, user.password);
+
+  if (!checkPassword) {
+    console.log(`User with email: ${email} has failed to login`);
+    return res.status(401).send("Invalid email or password");
+  }
+
+  const jwtSecret = process.env.JWT_SECRET;
+
+  const payload = {
+    username: user.username,
+    email: user.email,
+    password: user.password,
+  };
+
+  const jwtToken = jwt.sign(payload, jwtSecret, { expiresIn: "1d" });
+
+  res
+    .status(200)
+    .json({ message: "User sucessfully logged in", token: jwtToken });
+});
+
+app.get("/forum", auth, async (req, res) => {
+  console.log(req);
+  res.status(200).json("User is authenticated to access the ahgtpvp forums");
+});
+
+async function auth(req, res, next) {
+  const jwtToken = req.headers.authorization.split(" ")[1];
+  const jwtSecret = process.env.JWT_SECRET;
+  try {
+    const decoded = jwt.verify(jwtToken, jwtSecret);
+
+    const userEmail = decoded.email;
+
+    const user = await userModel.findOne({ email: userEmail });
+
+    if (user) {
+      next();
+    } else {
+      res.status(401).json({ error: "Invalid token" });
+    }
+  } catch (error) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+}
+
+app.listen(port, () => {
+  console.log(`ahgtpvp backend listening on port: ${port}`);
+});
