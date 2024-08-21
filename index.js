@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const conDB = require("./dbConnection");
@@ -12,6 +13,7 @@ const port = process.env.PORT || 8000;
 conDB();
 
 app.use(bodyParser.json());
+app.use(cors());
 
 app.get("/", (req, res) => {
   res.status(200).json("Welcome to the AHGTPVP Backend");
@@ -66,7 +68,7 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/forum", auth, async (req, res) => {
-  console.log(req);
+  console.log("User has entered the forums");
   res.status(200).json("User is authenticated to access the ahgtpvp forums");
 });
 
@@ -81,11 +83,14 @@ async function auth(req, res, next) {
     const user = await userModel.findOne({ email: userEmail });
 
     if (user) {
+      console.log("Auth success");
       next();
     } else {
+      console.log("Auth Failed");
       res.status(401).json({ error: "Invalid token" });
     }
   } catch (error) {
+    console.log("Auth Failed");
     res.status(401).json({ error: "Invalid token" });
   }
 }
