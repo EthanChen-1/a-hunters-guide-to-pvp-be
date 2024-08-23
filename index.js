@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const conDB = require("./dbConnection");
 const jwt = require("jsonwebtoken");
 const userModel = require("./userModel");
+const threadModel = require("./threadModel");
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -69,7 +70,27 @@ app.post("/login", async (req, res) => {
 
 app.get("/forum", auth, async (req, res) => {
   console.log("User has entered the forums");
-  res.status(200).json("User is authenticated to access the ahgtpvp forums");
+  const threads = await threadModel.find();
+  res.status(200).json(threads);
+});
+
+app.post("/forum", auth, async (req, res) => {
+  const { title, author, content } = req.body;
+  const newThread = new threadModel({
+    title,
+    author,
+    content,
+    comments: [],
+    date: Date.now(),
+  });
+  const threadCreated = await newThread.save();
+  if (!threadCreated) {
+    console.log("Error occured when trying to create a thread");
+    return res.status(500).send("Error occured when trying to create a thread");
+  } else {
+    console.log("Thread successfully created");
+    return res.status(200).send("Thread successfully created");
+  }
 });
 
 async function auth(req, res, next) {
