@@ -61,7 +61,7 @@ app.post("/login", async (req, res) => {
     password: user.password,
   };
 
-  const jwtToken = jwt.sign(payload, jwtSecret, { expiresIn: "1d" });
+  const jwtToken = jwt.sign(payload, jwtSecret, { expiresIn: "1m" });
 
   res
     .status(200)
@@ -98,21 +98,21 @@ async function auth(req, res, next) {
   const jwtSecret = process.env.JWT_SECRET;
   try {
     const decoded = jwt.verify(jwtToken, jwtSecret);
-
     const userEmail = decoded.email;
-
     const user = await userModel.findOne({ email: userEmail });
-
     if (user) {
       console.log("Auth success");
       next();
     } else {
       console.log("Auth Failed");
-      res.status(401).json({ error: "Invalid token" });
+      res.status(401).send("Auth Failed");
     }
-  } catch (error) {
-    console.log("Auth Failed");
-    res.status(401).json({ error: "Invalid token" });
+  } catch (err) {
+    if (err.expiredAt) {
+      res.status(401).json({ message: "Please Login Again", token: null });
+    } else {
+      res.status(401).send("You are not authorized to access the forums");
+    }
   }
 }
 
